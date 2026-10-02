@@ -1,0 +1,6 @@
+{
+  "name": "Haier MP Intelligence Dashboard",
+  "description": "ระบบคำนวณและวิเคราะห์กำลังคนตาม Production Plan (Haier MP Intelligence Dashboard - Line A, Line B & Sheet Summary Dashboard)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
