@@ -11,6 +11,10 @@ export interface ProcessItem {
   category?: string;
   notes?: string;
   lineId?: LineId;
+  customTaktTime?: number; // Optional manual override for takt time
+  customMpReq?: number; // Optional manual override for MP Req
+  customGap?: number; // Optional manual override for Gap
+  customStatus?: 'balanced' | 'shortage' | 'surplus'; // Optional manual override for Status
 }
 
 export interface ProductionParams {
@@ -18,14 +22,20 @@ export interface ProductionParams {
   efficiency: number; // e.g. 0.80
   shifts: number; // e.g. 2
   dailyPlan: number; // e.g. 3470
+  customTaktTime?: number; // Optional line-wide manual Takt Time override
 }
 
 export interface CalculatedProcess extends ProcessItem {
   cycleTime: number; // CT in seconds = 3600 / uph
-  mpReq: number; // CT / taktTime
-  gap: number; // act - mpReq
+  mpReq: number; // CT / taktTime or custom override
+  gap: number; // act - mpReq or custom override
   status: 'balanced' | 'shortage' | 'surplus';
   isBottleneck: boolean;
+  taktTimeUsed: number;
+  isMpReqOverridden: boolean;
+  isGapOverridden: boolean;
+  isTaktOverridden: boolean;
+  isStatusOverridden: boolean;
 }
 
 export interface SummaryKpi {
@@ -40,6 +50,7 @@ export interface SummaryKpi {
   shortageCount: number;
   surplusCount: number;
   balancedCount: number;
+  isTaktOverridden: boolean;
 }
 
 export interface LineData {

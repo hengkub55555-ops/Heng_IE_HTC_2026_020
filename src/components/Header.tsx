@@ -11,6 +11,7 @@ import {
   Layers,
   ChevronDown,
   FileText,
+  Save,
 } from 'lucide-react';
 import { ActiveTab, LineId } from '../types';
 
@@ -26,6 +27,7 @@ interface HeaderProps {
   onImportJson: (file: File) => void;
   onOpenFormula: () => void;
   onOpenExecutiveModal: () => void;
+  onManualSave?: () => void;
   shifts: number;
   isSaving: boolean;
   lastSavedAt: string;
@@ -46,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
   onImportJson,
   onOpenFormula,
   onOpenExecutiveModal,
+  onManualSave,
   shifts,
   isSaving,
   lastSavedAt,
@@ -175,6 +178,20 @@ export const Header: React.FC<HeaderProps> = ({
               <FileText className="w-3.5 h-3.5 text-blue-200" />
               <span>ข้อสรุป ผจก.โรงงาน</span>
             </button>
+
+            {/* Manual Save Button */}
+            {onManualSave && (
+              <button
+                id="header-manual-save-btn"
+                type="button"
+                onClick={onManualSave}
+                title="กดบันทึกข้อมูลและค่าที่แก้ไขทั้งหมดลงระบบทันที"
+                className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/50 rounded-lg transition-all flex items-center gap-1.5 text-xs px-2.5 font-bold shadow-md shadow-emerald-950/40"
+              >
+                <Save className="w-3.5 h-3.5 text-white" />
+                <span>บันทึกข้อมูล</span>
+              </button>
+            )}
 
             {/* Formula button */}
             <button

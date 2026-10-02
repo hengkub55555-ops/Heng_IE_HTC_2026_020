@@ -239,6 +239,26 @@ export default function App() {
     setIsResetConfirmOpen(false);
   };
 
+  // Manual save handler triggered by user clicking "บันทึกข้อมูล"
+  const handleManualSave = () => {
+    const savedTime = saveDashboardState({
+      activeTab,
+      lineA: {
+        params: lineAParams,
+        processes: lineAProcesses,
+        viewMode: lineAViewMode,
+      },
+      lineB: {
+        params: lineBParams,
+        processes: lineBProcesses,
+        viewMode: lineBViewMode,
+      },
+    });
+    setLastSavedAt(savedTime);
+    setIsSaving(false);
+    showToast(`✓ บันทึกข้อมูลและค่าที่แก้ไขทั้งหมดเรียบร้อยแล้ว (${savedTime})`);
+  };
+
   // Export CSV for current active sheet
   const handleExportCurrentLine = () => {
     if (activeTab === 'summary') {
@@ -486,6 +506,7 @@ export default function App() {
           onImportJson={handleImportJson}
           onOpenFormula={() => setIsFormulaModalOpen(true)}
           onOpenExecutiveModal={() => setIsExecutiveModalOpen(true)}
+          onManualSave={handleManualSave}
           shifts={currentParams.shifts}
           isSaving={isSaving}
           lastSavedAt={lastSavedAt}
@@ -506,6 +527,7 @@ export default function App() {
             onNavigateToLine={(lineId) => setActiveTab(lineId)}
             onUpdateProcessLineA={handleUpdateProcessLineA}
             onUpdateProcessLineB={handleUpdateProcessLineB}
+            onManualSave={handleManualSave}
           />
         ) : (
           /* Sheet 1: Line A OR Sheet 2: Line B */
@@ -516,6 +538,7 @@ export default function App() {
               onChange={handleParamChange}
               taktTime={currentKpi.taktTime}
               planPerShift={currentKpi.planPerShift}
+              onResetTaktTime={() => handleParamChange('customTaktTime', 0)}
             />
 
             {/* KPI Cards Section for Current Line */}
@@ -535,6 +558,7 @@ export default function App() {
               onUpdateProcess={handleUpdateCurrentProcess}
               onDeleteProcess={handleDeleteProcess}
               onAddNewProcess={() => setIsAddModalOpen(true)}
+              onManualSave={handleManualSave}
             />
           </div>
         )}

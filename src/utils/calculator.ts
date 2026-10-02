@@ -13,15 +13,21 @@ export function calculateManpower(
   calculatedList: CalculatedProcess[];
   kpi: SummaryKpi;
 } {
-  const { workTime, efficiency, shifts, dailyPlan } = params;
+  const { workTime, efficiency, shifts, dailyPlan, customTaktTime } = params;
   const safeWorkTime = workTime > 0 ? workTime : 28800;
   const safeEff = efficiency > 0 ? efficiency : 0.8;
   const safeShifts = shifts > 0 ? shifts : 2;
   const safeDailyPlan = dailyPlan >= 0 ? dailyPlan : 0;
 
   const planPerShift = safeShifts > 0 ? safeDailyPlan / safeShifts : 0;
-  const taktTime =
+  const calculatedTaktTime =
     planPerShift > 0 ? (safeWorkTime * safeEff) / planPerShift : 0;
+
+  // Use line-level custom takt time override if specified, otherwise formula
+  const defaultLineTaktTime =
+    customTaktTime !== undefined && customTaktTime > 0
+      ? customTaktTime
+      : calculatedTaktTime;
 
   let totalMpReq = 0;
   let totalMpAct = 0;
@@ -34,26 +40,57 @@ export function calculateManpower(
   const calculatedList: CalculatedProcess[] = processes.map((proc) => {
     const uphSafe = proc.uph > 0 ? proc.uph : 1;
     const cycleTime = 3600 / uphSafe;
-    const mpReq = taktTime > 0 ? cycleTime / taktTime : 0;
+
+    // Determine Takt Time used: process override > line override > formula
+    const taktTimeUsed =
+      proc.customTaktTime !== undefined && proc.customTaktTime > 0
+        ? proc.customTaktTime
+        : defaultLineTaktTime;
+
+    const isTaktOverridden =
+      (proc.customTaktTime !== undefined && proc.customTaktTime > 0) ||
+      (customTaktTime !== undefined && customTaktTime > 0);
+
+    // Determine MP Required: process custom override > formula (cycleTime / taktTime)
+    let mpReq = 0;
+    const isMpReqOverridden = proc.customMpReq !== undefined && proc.customMpReq >= 0;
+    if (isMpReqOverridden) {
+      mpReq = proc.customMpReq!;
+    } else {
+      mpReq = taktTimeUsed > 0 ? cycleTime / taktTimeUsed : 0;
+    }
 
     totalMpReq += mpReq;
     totalMpAct += proc.act;
     totalMpStd += proc.std;
 
-    const gap = proc.act - mpReq;
-
-    let status: 'balanced' | 'shortage' | 'surplus' = 'balanced';
-    if (gap < -1) {
-      status = 'shortage';
-      shortageCount += 1;
-    } else if (gap > 1) {
-      status = 'surplus';
-      surplusCount += 1;
+    // Determine Gap: process custom override > formula (act - mpReq)
+    let gap = 0;
+    const isGapOverridden = proc.customGap !== undefined;
+    if (isGapOverridden) {
+      gap = proc.customGap!;
     } else {
-      balancedCount += 1;
+      gap = proc.act - mpReq;
     }
 
-    const isBottleneck = taktTime > 0 && cycleTime > taktTime;
+    // Determine Status: custom override > formula
+    let status: 'balanced' | 'shortage' | 'surplus' = 'balanced';
+    const isStatusOverridden = proc.customStatus !== undefined;
+    if (isStatusOverridden) {
+      status = proc.customStatus!;
+    } else {
+      if (gap < -1) {
+        status = 'shortage';
+      } else if (gap > 1) {
+        status = 'surplus';
+      }
+    }
+
+    if (status === 'shortage') shortageCount += 1;
+    else if (status === 'surplus') surplusCount += 1;
+    else balancedCount += 1;
+
+    const isBottleneck = taktTimeUsed > 0 && cycleTime > taktTimeUsed;
     if (isBottleneck) {
       bottlenecksCount += 1;
     }
@@ -65,6 +102,11 @@ export function calculateManpower(
       gap,
       status,
       isBottleneck,
+      taktTimeUsed,
+      isMpReqOverridden,
+      isGapOverridden,
+      isTaktOverridden,
+      isStatusOverridden,
     };
   });
 
@@ -79,13 +121,14 @@ export function calculateManpower(
       totalMpAct,
       totalMpStd,
       totalGap,
-      taktTime,
+      taktTime: defaultLineTaktTime,
       planPerShift,
       balancingRate,
       bottlenecksCount,
       shortageCount,
       surplusCount,
       balancedCount,
+      isTaktOverridden: customTaktTime !== undefined && customTaktTime > 0,
     },
   };
 }

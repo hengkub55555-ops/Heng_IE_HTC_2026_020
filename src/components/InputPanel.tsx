@@ -1,12 +1,13 @@
 import React from 'react';
 import { ProductionParams } from '../types';
-import { Clock, Gauge, Calendar, Target, Zap, Plus, Minus } from 'lucide-react';
+import { Clock, Gauge, Calendar, Target, Zap, Plus, Minus, RotateCcw, Edit3 } from 'lucide-react';
 
 interface InputPanelProps {
   params: ProductionParams;
   onChange: (key: keyof ProductionParams, val: number) => void;
   taktTime: number;
   planPerShift: number;
+  onResetTaktTime?: () => void;
 }
 
 export const InputPanel: React.FC<InputPanelProps> = ({
@@ -14,6 +15,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({
   onChange,
   taktTime,
   planPerShift,
+  onResetTaktTime,
 }) => {
   return (
     <div className="space-y-3">
@@ -285,12 +287,78 @@ export const InputPanel: React.FC<InputPanelProps> = ({
       {/* Operational Takt Time & Shift Summary Strip */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 px-4 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-4 flex-wrap">
+          {/* Takt Time with Live Stepper / Override */}
           <div className="flex items-center gap-2">
-            <span className="text-slate-400">Takt Time คำนวณได้:</span>
-            <span className="font-mono font-bold text-blue-400 text-sm">
-              {taktTime > 0 ? taktTime.toFixed(2) : '0.00'} วินาที/ชิ้น
-            </span>
+            <span className="text-slate-400">Takt Time สายนี้:</span>
+            <div
+              className={`flex items-center gap-1 bg-slate-950 border rounded px-1.5 py-0.5 ${
+                params.customTaktTime !== undefined && params.customTaktTime > 0
+                  ? 'border-amber-500/80 bg-amber-950/20'
+                  : 'border-slate-700'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() =>
+                  onChange('customTaktTime', Math.max(0.5, parseFloat((taktTime - 0.5).toFixed(1))))
+                }
+                title="ลด Takt Time (-0.5s)"
+                className="text-slate-500 hover:text-amber-300 p-0.5 rounded hover:bg-slate-800 transition-colors"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <input
+                type="number"
+                step="0.1"
+                min="0.5"
+                value={
+                  params.customTaktTime !== undefined
+                    ? params.customTaktTime
+                    : parseFloat(taktTime.toFixed(2))
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChange(
+                    'customTaktTime',
+                    val === '' || isNaN(parseFloat(val)) ? 0 : parseFloat(val)
+                  );
+                }}
+                className={`w-16 bg-transparent text-center font-mono font-bold text-xs focus:outline-none ${
+                  params.customTaktTime !== undefined && params.customTaktTime > 0
+                    ? 'text-amber-300'
+                    : 'text-blue-400'
+                }`}
+                title="คลิกหรือพิมพ์แก้ไข Takt Time ของสายนี้ได้โดยตรง"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  onChange('customTaktTime', Math.max(0.5, parseFloat((taktTime + 0.5).toFixed(1))))
+                }
+                title="เพิ่ม Takt Time (+0.5s)"
+                className="text-slate-500 hover:text-amber-300 p-0.5 rounded hover:bg-slate-800 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+            <span className="text-slate-500">วินาที/ชิ้น</span>
+
+            {params.customTaktTime !== undefined && params.customTaktTime > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onResetTaktTime) onResetTaktTime();
+                  else onChange('customTaktTime', 0);
+                }}
+                title="คืนค่าคำนวณ Takt Time อัตโนมัติจากสูตร (Work Time × Eff ÷ Plan)"
+                className="inline-flex items-center gap-1 text-[11px] text-amber-400 hover:text-amber-200 underline decoration-amber-600"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>คืนค่าสูตร</span>
+              </button>
+            )}
           </div>
+
           <span className="text-slate-700">|</span>
           <div className="flex items-center gap-2">
             <span className="text-slate-400">Plan ต่อกะ:</span>
@@ -300,7 +368,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({
           </div>
           <span className="text-slate-700">|</span>
           <div className="flex items-center gap-2">
-            <span className="text-slate-400">เวลาทำงานสุทธิ (Net Working Time):</span>
+            <span className="text-slate-400">เวลาทำงานสุทธิ:</span>
             <span className="font-mono font-medium text-slate-300">
               {(params.workTime * params.efficiency).toLocaleString()} วินาที
             </span>

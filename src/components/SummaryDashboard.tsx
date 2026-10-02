@@ -34,6 +34,9 @@ import {
   Sparkles,
   AlertTriangle,
   CheckCircle2,
+  Save,
+  RotateCcw,
+  Check,
 } from 'lucide-react';
 
 interface SummaryDashboardProps {
@@ -45,6 +48,7 @@ interface SummaryDashboardProps {
   onNavigateToLine: (lineId: 'lineA' | 'lineB') => void;
   onUpdateProcessLineA: (id: string, updates: Partial<ProcessItem>) => void;
   onUpdateProcessLineB: (id: string, updates: Partial<ProcessItem>) => void;
+  onManualSave?: () => void;
 }
 
 export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
@@ -56,6 +60,7 @@ export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
   onNavigateToLine,
   onUpdateProcessLineA,
   onUpdateProcessLineB,
+  onManualSave,
 }) => {
   const [tableFilterLine, setTableFilterLine] = useState<'All' | 'lineA' | 'lineB'>('All');
   const [tableFilterStatus, setTableFilterStatus] = useState<string>('All');
@@ -199,6 +204,8 @@ export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
     }
   };
 
+  const [isMasterSavedFeedback, setIsMasterSavedFeedback] = useState(false);
+
   const handleMasterStep = (
     proc: (typeof combinedProcesses)[0],
     field: 'uph' | 'std' | 'act',
@@ -212,6 +219,94 @@ export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
     } else {
       onUpdateProcessLineB(proc.id, { [field]: finalVal });
     }
+  };
+
+  const handleMasterTaktChange = (proc: (typeof combinedProcesses)[0], val: string) => {
+    const newVal = val === '' || isNaN(parseFloat(val)) ? undefined : Math.max(0.1, parseFloat(val));
+    if (proc.sourceLine === 'lineA') {
+      onUpdateProcessLineA(proc.id, { customTaktTime: newVal });
+    } else {
+      onUpdateProcessLineB(proc.id, { customTaktTime: newVal });
+    }
+  };
+
+  const handleMasterTaktStep = (proc: (typeof combinedProcesses)[0], delta: number) => {
+    const base = proc.taktTimeUsed || 1;
+    const newVal = Math.max(0.5, parseFloat((base + delta).toFixed(1)));
+    if (proc.sourceLine === 'lineA') {
+      onUpdateProcessLineA(proc.id, { customTaktTime: newVal });
+    } else {
+      onUpdateProcessLineB(proc.id, { customTaktTime: newVal });
+    }
+  };
+
+  const handleMasterMpReqChange = (proc: (typeof combinedProcesses)[0], val: string) => {
+    const newVal = val === '' || isNaN(parseFloat(val)) ? undefined : Math.max(0, parseFloat(val));
+    if (proc.sourceLine === 'lineA') {
+      onUpdateProcessLineA(proc.id, { customMpReq: newVal });
+    } else {
+      onUpdateProcessLineB(proc.id, { customMpReq: newVal });
+    }
+  };
+
+  const handleMasterMpReqStep = (proc: (typeof combinedProcesses)[0], delta: number) => {
+    const base = proc.mpReq || 0;
+    const newVal = Math.max(0, parseFloat((base + delta).toFixed(1)));
+    if (proc.sourceLine === 'lineA') {
+      onUpdateProcessLineA(proc.id, { customMpReq: newVal });
+    } else {
+      onUpdateProcessLineB(proc.id, { customMpReq: newVal });
+    }
+  };
+
+  const handleMasterGapChange = (proc: (typeof combinedProcesses)[0], val: string) => {
+    const newVal = val === '' || isNaN(parseFloat(val)) ? undefined : parseFloat(val);
+    if (proc.sourceLine === 'lineA') {
+      onUpdateProcessLineA(proc.id, { customGap: newVal });
+    } else {
+      onUpdateProcessLineB(proc.id, { customGap: newVal });
+    }
+  };
+
+  const handleMasterGapStep = (proc: (typeof combinedProcesses)[0], delta: number) => {
+    const base = proc.gap || 0;
+    const newVal = parseFloat((base + delta).toFixed(1));
+    if (proc.sourceLine === 'lineA') {
+      onUpdateProcessLineA(proc.id, { customGap: newVal });
+    } else {
+      onUpdateProcessLineB(proc.id, { customGap: newVal });
+    }
+  };
+
+  const handleMasterStatusChange = (proc: (typeof combinedProcesses)[0], val: string) => {
+    const newVal = val === 'auto' ? undefined : (val as 'balanced' | 'shortage' | 'surplus');
+    if (proc.sourceLine === 'lineA') {
+      onUpdateProcessLineA(proc.id, { customStatus: newVal });
+    } else {
+      onUpdateProcessLineB(proc.id, { customStatus: newVal });
+    }
+  };
+
+  const handleResetMasterRow = (proc: (typeof combinedProcesses)[0]) => {
+    const updates = {
+      customTaktTime: undefined,
+      customMpReq: undefined,
+      customGap: undefined,
+      customStatus: undefined,
+    };
+    if (proc.sourceLine === 'lineA') {
+      onUpdateProcessLineA(proc.id, updates);
+    } else {
+      onUpdateProcessLineB(proc.id, updates);
+    }
+  };
+
+  const handleTriggerMasterSave = () => {
+    if (onManualSave) {
+      onManualSave();
+    }
+    setIsMasterSavedFeedback(true);
+    setTimeout(() => setIsMasterSavedFeedback(false), 2000);
   };
 
   const isPlantShortage = plantKpi.totalGap < -1;
@@ -921,6 +1016,30 @@ export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
               <option value="shortage">คนขาด (&lt; -1)</option>
               <option value="surplus">คนเกิน (&gt; +1)</option>
             </select>
+
+            {/* Manual Save Button for Master Table */}
+            <button
+              type="button"
+              onClick={handleTriggerMasterSave}
+              title="กดบันทึกข้อมูลและค่าที่แก้ไขทั้งหมดลงระบบ"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg shadow transition-all ${
+                isMasterSavedFeedback
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white hover:shadow-emerald-900/50'
+              }`}
+            >
+              {isMasterSavedFeedback ? (
+                <>
+                  <Check className="w-3.5 h-3.5 animate-bounce-short" />
+                  <span>บันทึกแล้ว!</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5" />
+                  <span>บันทึกข้อมูล</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 
@@ -934,26 +1053,41 @@ export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
                 <th className="p-3 font-semibold min-w-[110px]">
                   <div className="flex items-center gap-1">
                     <span>UPH</span>
-                    <span className="text-[10px] text-blue-400 font-normal">(แก้ไขได้)</span>
+                    <span className="text-[10px] text-blue-400 font-normal">(แก้ได้)</span>
                   </div>
                 </th>
-                <th className="p-3 font-semibold min-w-[110px]">
+                <th className="p-3 font-semibold min-w-[105px]">
                   <div className="flex items-center gap-1">
                     <span>MP STD</span>
-                    <span className="text-[10px] text-purple-400 font-normal">(แก้ไขได้)</span>
+                    <span className="text-[10px] text-purple-400 font-normal">(แก้ได้)</span>
+                  </div>
+                </th>
+                <th className="p-3 font-semibold min-w-[105px]">
+                  <div className="flex items-center gap-1">
+                    <span>MP Actual</span>
+                    <span className="text-[10px] text-emerald-400 font-normal">(แก้ได้)</span>
                   </div>
                 </th>
                 <th className="p-3 font-semibold min-w-[110px]">
                   <div className="flex items-center gap-1">
-                    <span>MP Actual</span>
-                    <span className="text-[10px] text-emerald-400 font-normal">(แก้ไขได้)</span>
+                    <span>Takt (s)</span>
+                    <span className="text-[10px] text-amber-400 font-normal">(แก้ได้)</span>
                   </div>
                 </th>
-                <th className="p-3 font-semibold">Takt (s)</th>
-                <th className="p-3 font-semibold">MP Req</th>
-                <th className="p-3 font-semibold">Gap</th>
-                <th className="p-3 font-semibold">Status</th>
-                <th className="p-3 font-semibold text-right">Sheet</th>
+                <th className="p-3 font-semibold min-w-[110px]">
+                  <div className="flex items-center gap-1">
+                    <span>MP Req</span>
+                    <span className="text-[10px] text-blue-400 font-normal">(แก้ได้)</span>
+                  </div>
+                </th>
+                <th className="p-3 font-semibold min-w-[105px]">
+                  <div className="flex items-center gap-1">
+                    <span>Gap</span>
+                    <span className="text-[10px] text-emerald-400 font-normal">(แก้ได้)</span>
+                  </div>
+                </th>
+                <th className="p-3 font-semibold min-w-[110px]">Status</th>
+                <th className="p-3 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -1108,38 +1242,183 @@ export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
                         </div>
                       </td>
 
-                      <td className="p-3 text-slate-400 font-mono text-xs">
-                        {taktForThisLine > 0 ? taktForThisLine.toFixed(1) : '0.0'}
-                      </td>
-
-                      <td className="p-3 text-blue-400 font-semibold font-mono text-xs">
-                        {proc.mpReq.toFixed(1)}
-                      </td>
-
-                      <td className="p-3 font-mono text-xs">
-                        <span
-                          className={
-                            proc.gap > 1
-                              ? 'text-amber-400'
-                              : proc.gap < -1
-                              ? 'text-rose-400'
-                              : 'text-emerald-400'
-                          }
+                      {/* Takt Time Live Editable */}
+                      <td className="p-3">
+                        <div
+                          className={`flex items-center gap-1 bg-slate-900/90 border rounded-md px-1 py-1 w-28 transition-colors ${
+                            proc.isTaktOverridden
+                              ? 'border-amber-500/80 bg-amber-950/20'
+                              : 'border-slate-700 hover:border-amber-500/60 focus-within:border-amber-500'
+                          }`}
                         >
-                          {proc.gap > 0 ? `+${proc.gap.toFixed(1)}` : proc.gap.toFixed(1)}
-                        </span>
+                          <button
+                            type="button"
+                            onClick={() => handleMasterTaktStep(proc, -0.5)}
+                            title="ลด Takt Time (-0.5s)"
+                            className="text-slate-500 hover:text-amber-300 p-0.5 rounded hover:bg-slate-800 transition-colors"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={
+                              proc.customTaktTime !== undefined
+                                ? proc.customTaktTime
+                                : parseFloat(proc.taktTimeUsed.toFixed(1))
+                            }
+                            onChange={(e) => handleMasterTaktChange(proc, e.target.value)}
+                            className={`w-full bg-transparent text-center font-mono font-semibold text-xs focus:outline-none ${
+                              proc.isTaktOverridden ? 'text-amber-300 font-bold' : 'text-slate-300'
+                            }`}
+                            title="พิมพ์เพื่อกำหนด Takt Time เฉพาะสถานีนี้"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleMasterTaktStep(proc, +0.5)}
+                            title="เพิ่ม Takt Time (+0.5s)"
+                            className="text-slate-500 hover:text-amber-300 p-0.5 rounded hover:bg-slate-800 transition-colors"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
                       </td>
 
-                      <td className="p-3">{statusBadge}</td>
+                      {/* MP Req Live Editable */}
+                      <td className="p-3">
+                        <div
+                          className={`flex items-center gap-1 bg-slate-900/90 border rounded-md px-1 py-1 w-26 transition-colors ${
+                            proc.isMpReqOverridden
+                              ? 'border-blue-500/80 bg-blue-950/20'
+                              : 'border-slate-700 hover:border-blue-500/60 focus-within:border-blue-500'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleMasterMpReqStep(proc, -0.1)}
+                            title="ลด MP Req (-0.1)"
+                            className="text-slate-500 hover:text-blue-300 p-0.5 rounded hover:bg-slate-800 transition-colors"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={
+                              proc.customMpReq !== undefined
+                                ? proc.customMpReq
+                                : parseFloat(proc.mpReq.toFixed(1))
+                            }
+                            onChange={(e) => handleMasterMpReqChange(proc, e.target.value)}
+                            className={`w-full bg-transparent text-center font-mono font-bold text-xs focus:outline-none ${
+                              proc.isMpReqOverridden ? 'text-blue-300' : 'text-blue-400'
+                            }`}
+                            title="พิมพ์เพื่อกำหนด MP Req เอง"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleMasterMpReqStep(proc, +0.1)}
+                            title="เพิ่ม MP Req (+0.1)"
+                            className="text-slate-500 hover:text-blue-300 p-0.5 rounded hover:bg-slate-800 transition-colors"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* Gap Live Editable */}
+                      <td className="p-3">
+                        <div
+                          className={`flex items-center gap-1 bg-slate-900/90 border rounded-md px-1 py-1 w-26 transition-colors ${
+                            proc.isGapOverridden
+                              ? 'border-emerald-500/80 bg-emerald-950/20'
+                              : 'border-slate-700 hover:border-emerald-500/60 focus-within:border-emerald-500'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleMasterGapStep(proc, -0.5)}
+                            title="ลด Gap (-0.5)"
+                            className="text-slate-500 hover:text-slate-200 p-0.5 rounded hover:bg-slate-800 transition-colors"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={
+                              proc.customGap !== undefined
+                                ? proc.customGap
+                                : parseFloat(proc.gap.toFixed(1))
+                            }
+                            onChange={(e) => handleMasterGapChange(proc, e.target.value)}
+                            className={`w-full bg-transparent text-center font-mono font-bold text-xs focus:outline-none ${
+                              proc.gap > 1
+                                ? 'text-amber-400'
+                                : proc.gap < -1
+                                ? 'text-rose-400'
+                                : 'text-emerald-400'
+                            }`}
+                            title="พิมพ์เพื่อกำหนด Gap เอง"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleMasterGapStep(proc, +0.5)}
+                            title="เพิ่ม Gap (+0.5)"
+                            className="text-slate-500 hover:text-slate-200 p-0.5 rounded hover:bg-slate-800 transition-colors"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* Status Live Select */}
+                      <td className="p-3">
+                        <select
+                          value={proc.customStatus || 'auto'}
+                          onChange={(e) => handleMasterStatusChange(proc, e.target.value)}
+                          className={`rounded px-2 py-1 text-xs font-medium border focus:outline-none transition-colors ${
+                            proc.status === 'shortage'
+                              ? 'bg-rose-950 text-rose-300 border-rose-700/80'
+                              : proc.status === 'surplus'
+                              ? 'bg-amber-950 text-amber-300 border-amber-700/80'
+                              : 'bg-emerald-950 text-emerald-300 border-emerald-700/80'
+                          }`}
+                        >
+                          <option value="auto">
+                            {proc.status === 'shortage'
+                              ? 'Auto: คนขาด'
+                              : proc.status === 'surplus'
+                              ? 'Auto: คนเกิน'
+                              : 'Auto: สมดุล'}
+                          </option>
+                          <option value="balanced">✓ สมดุล</option>
+                          <option value="shortage">⚠️ คนขาด</option>
+                          <option value="surplus">⚡ คนเกิน</option>
+                        </select>
+                      </td>
 
                       <td className="p-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => onNavigateToLine(proc.sourceLine)}
-                          className="text-xs text-slate-400 hover:text-white underline decoration-slate-600"
-                        >
-                          เปิด Sheet
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {(proc.isTaktOverridden || proc.isMpReqOverridden || proc.isGapOverridden || proc.isStatusOverridden) && (
+                            <button
+                              type="button"
+                              onClick={() => handleResetMasterRow(proc)}
+                              title="คืนค่าแถวนี้กลับเป็นสูตรคำนวณอัตโนมัติ"
+                              className="p-1 text-amber-400 hover:text-amber-200 hover:bg-slate-700/60 rounded transition-colors"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => onNavigateToLine(proc.sourceLine)}
+                            className="text-xs text-slate-400 hover:text-white underline decoration-slate-600"
+                          >
+                            เปิด Sheet
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
